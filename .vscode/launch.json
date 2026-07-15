@@ -1,0 +1,40 @@
+{
+  // Configurações de debug do VS Code (rodam dentro do devcontainer).
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Inicia o uvicorn pelo debugger — coloque breakpoints em app/*.py.
+      "name": "FastAPI (uvicorn debug)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--host", "0.0.0.0",
+        "--port", "8000",
+        "--reload"
+      ],
+      "jinja": false,
+      "justMyCode": false,
+      "console": "integratedTerminal"
+    },
+    {
+      // Anexa-se a um uvicorn já rodando com debugpy na porta 5678.
+      // Útil quando quiser depurar a app subida por `docker run` separado.
+      "name": "FastAPI (attach to 5678)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "/app"
+        }
+      ],
+      "justMyCode": false
+    }
+  ]
+}

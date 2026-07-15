@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudtask-api
+  namespace: cloudtask
+  labels:
+    app: cloudtask-api
+spec:
+  # 2+ replicas para disponibilidade basica e para demonstrar rollout sem downtime.
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudtask-api
+  template:
+    metadata:
+      labels:
+        app: cloudtask-api
+    spec:
+      containers:
+        - name: api
+          # Imagem vinda do ECR (Aula 7). Troque account/region/tag conforme sua conta.
+          image: 760557893886.dkr.ecr.us-east-1.amazonaws.com/cloudtask-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: cloudtask-config
+            - secretRef:
+                name: cloudtask-secrets
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          # Decisao: livenessProbe em /health, nao no banco.
+          # Por que: reinicia pod apenas quando processo trava.
+          # Impacto: auto-healing correto sem reinicio por oscilacao externa.
+          # Risco se ignorar: liveness no DB reinicia pod por falha do banco (errado).
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Decisao: readinessProbe em /health/ready (checa DB).
+          # Por que: pod so recebe trafego quando dependencia critica responde.
+          # Impacto: rollout espera banco; reduz erro 500 no startup.
+          # Risco se ignorar: readiness em /health libera trafego com DB indisponivel.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3

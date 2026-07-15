@@ -1,0 +1,91 @@
+# =============================================================================
+# docker-compose.yml — CloudTask AI SaaS (Aula 3)
+# -----------------------------------------------------------------------------
+# Sobe DOIS serviços: a API FastAPI (target `dev`) e um banco PostgreSQL.
+# É o "estado padrão" do desenvolvimento, consumido tanto por
+# `docker compose up` quanto pelo devcontainer do VS Code.
+#
+# NOVO na Aula 3: o serviço `db` (PostgreSQL 16). Como o devcontainer aponta
+# para este arquivo, ao reabrir o container no VS Code o aluno GANHA o banco
+# automaticamente — sem mudar nada no devcontainer.json.
+#
+# Comandos básicos:
+#   docker compose up --build         # constrói e sobe API + banco
+#   docker compose logs -f api        # acompanha os logs da API
+#   docker compose exec db psql -U cloudtask cloudtask   # abre o cliente psql
+#   docker compose down               # para e remove containers (mantém volume)
+#   docker compose down -v            # para e APAGA o volume (zera o banco!)
+#
+# Produção (simulação local): docker-compose.prod.yml (override).
+# =============================================================================
+
+services:
+
+  # ----- API FastAPI -------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev                         # imagem com debugpy, ruff, watchfiles
+    image: cloudtask-api:dev
+    container_name: cloudtask-api
+    ports:
+      - "${APP_PORT:-8000}:8000"          # API
+      - "5678:5678"                       # debugpy (attach do VS Code)
+    volumes:
+      - .:/app:cached                     # hot-reload: editar no host reflete aqui
+      - api-pip-cache:/home/appuser/.cache/pip
+    environment:
+      APP_ENV: development
+      APP_PORT: "8000"
+      LOG_LEVEL: DEBUG
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      # Conexão com o banco. O host "db" é o NOME DESTE SERVIÇO abaixo — dentro
+      # da rede do Compose, "db" resolve para o container do PostgreSQL.
+      # POR QUÊ não "localhost": cada container tem seu próprio localhost; o
+      # banco está em OUTRO container, acessível pelo nome do serviço.
+      DATABASE_URL: postgresql+psycopg2://cloudtask:cloudtask@db:5432/cloudtask
+    depends_on:
+      db:
+        # `service_healthy`: a API só sobe DEPOIS que o healthcheck do banco
+        # passar. RISCO de não esperar: a API tenta conectar antes do Postgres
+        # aceitar conexões e quebra no startup.
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ----- Banco de dados PostgreSQL -----------------------------------------
+  db:
+    # postgres:16-alpine — MESMA major version do Amazon RDS for PostgreSQL.
+    # POR QUÊ "16": é a engine que usaremos no RDS, então o mesmo SQL/driver
+    # vale local e na nuvem. "alpine" = imagem pequena.
+    image: postgres:16-alpine
+    container_name: cloudtask-db
+    environment:
+      # Estas três variáveis configuram o banco na PRIMEIRA subida do volume.
+      # Em produção (RDS) viriam de um Secret — aqui são didáticas.
+      POSTGRES_USER: ${POSTGRES_USER:-cloudtask}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cloudtask}
+      POSTGRES_DB: ${POSTGRES_DB:-cloudtask}
+    ports:
+      # Expor 5432 no host é OPCIONAL — útil para conectar com DBeaver/psql do
+      # seu PC. RISCO: expor banco a rede é risco de segurança em ambiente real;
+      # aqui é só local. Se a porta 5432 já estiver em uso na sua máquina,
+      # mude para, por exemplo, "5433:5432" no seu .env (POSTGRES_PORT).
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Volume nomeado: os dados do banco SOBREVIVEM a `docker compose down`.
+      # Para zerar o banco do zero, use `docker compose down -v`.
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # `pg_isready` retorna 0 quando o Postgres aceita conexões. O Compose usa
+      # isso para liberar o `depends_on: service_healthy` da API.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cloudtask}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  api-pip-cache:
+  pgdata:

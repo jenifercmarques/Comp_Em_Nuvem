@@ -1,0 +1,54 @@
+# =============================================================================
+# pyproject.toml — CloudTask AI SaaS
+# -----------------------------------------------------------------------------
+# Centraliza configurações de ferramentas Python do projeto.
+# Não declara dependências (essas vivem em requirements*.txt) — apenas
+# preferências de lint, formatação e tipagem.
+# =============================================================================
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "venv", "build", "dist", "__pycache__", "exemplos"]
+
+[tool.ruff.lint]
+# E/F : pyflakes + pycodestyle (erros comuns)
+# I   : isort (ordem de imports)
+# D   : pydocstyle (docstrings obrigatórias) — convenção Google
+# UP  : pyupgrade (modernização de sintaxe)
+# B   : flake8-bugbear (armadilhas comuns)
+select = ["E", "F", "I", "D", "UP", "B"]
+ignore = [
+    "D203",   # conflita com D211
+    "D213",   # conflita com D212
+    "D100",   # docstring de módulo — exigida para módulos públicos,
+              #   relaxada para evitar fricção em arquivos `__init__.py` vazios
+    "D104",   # idem para pacotes
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Arquivos de teste podem omitir docstring em funções `test_*`.
+"tests/**" = ["D"]
+# Exemplos didáticos: comentários inline já cobrem; pydocstyle relaxado.
+"exemplos/**" = ["D"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+# `-p no:warnings` desliga o "warnings summary" do pytest. POR QUÊ:
+# warnings de libs (ex.: Starlette pedindo o httpx2) não afetam os testes e
+# poluem a saída, confundindo o aluno. Para depurar warnings um dia, basta
+# remover `-p no:warnings`.
+addopts = "-ra -q -p no:warnings"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+strict_optional = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudtask-api
+  namespace: cloudtask
+  labels:
+    app: cloudtask-api
+spec:
+  # Learner Lab (sem dominio): manter HTTP no ELB para demonstracao.
+  # Aqui entraria o ACM em producao real (via Ingress ALB + certificado).
+  type: LoadBalancer
+  selector:
+    app: cloudtask-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

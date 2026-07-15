@@ -1,0 +1,24 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: cloudtask
+  region: us-east-1
+  version: "1.31"
+
+# Reutiliza a LabRole do AWS Academy para evitar criação de novas roles.
+iam:
+  withOIDC: false
+  serviceRoleARN: arn:aws:iam::760557893886:role/LabRole
+
+managedNodeGroups:
+  - name: cloudtask-ng-1
+    instanceType: t3.small
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 2
+    iam:
+      instanceRoleARN: arn:aws:iam::760557893886:role/LabRole
+    ssh:
+      allow: false
+    privateNetworking: false

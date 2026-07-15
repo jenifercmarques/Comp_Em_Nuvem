@@ -1,0 +1,62 @@
+# Versionamento
+.git
+.gitignore
+.gitattributes
+
+# Ambientes virtuais e cache do Python
+.venv
+venv
+env
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Configuração local (NUNCA versionar .env real)
+.env
+.env.*
+!.env.example
+
+# IDEs e ferramentas auxiliares
+.vscode
+.idea
+.claude
+.cursor
+.aider*
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Pastas que não precisam entrar na imagem.
+# OBS: tests/ NÃO é ignorado — o target `test` do Dockerfile precisa dele.
+#      Mesmo assim, o target `prod` copia apenas app/, então tests/ não vaza
+#      para a imagem de produção.
+docs/
+exemplos/
+infra/
+scripts/
+.readme_docs/
+.devcontainer/
+.github/
+README.md
+LICENSE
+
+# Dados locais
+local_uploads/
+local_events/
+*.sqlite
+*.sqlite3
+*.db
+logs/
+*.log
+
+# Docker / Compose
+docker-compose*.yml
+.dockerignore

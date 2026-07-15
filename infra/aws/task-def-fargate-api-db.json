@@ -1,0 +1,60 @@
+{
+  "family": "cloudtask-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "EXEC_ROLE_ARN",
+  "taskRoleArn": "TASK_ROLE_ARN",
+  "containerDefinitions": [
+    {
+      "name": "db",
+      "image": "postgres:16-alpine",
+      "essential": true,
+      "portMappings": [{ "containerPort": 5432, "protocol": "tcp" }],
+      "environment": [
+        { "name": "POSTGRES_USER",     "value": "cloudtask" },
+        { "name": "POSTGRES_PASSWORD", "value": "<TROQUE_SENHA_DB>" },
+        { "name": "POSTGRES_DB",       "value": "cloudtask" }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "pg_isready -U cloudtask -d cloudtask"],
+        "interval": 10,
+        "timeout": 5,
+        "retries": 5,
+        "startPeriod": 30
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/cloudtask-api",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "db",
+          "awslogs-create-group": "true"
+        }
+      }
+    },
+    {
+      "name": "api",
+      "image": "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/cloudtask-api:latest",
+      "essential": true,
+      "dependsOn": [{ "containerName": "db", "condition": "HEALTHY" }],
+      "portMappings": [{ "containerPort": 8000, "protocol": "tcp" }],
+      "environment": [
+        { "name": "DATABASE_URL", "value": "postgresql://cloudtask:<TROQUE_SENHA_DB>@localhost:5432/cloudtask" },
+        { "name": "SECRET_KEY",   "value": "<TROQUE_SECRET_KEY>" },
+        { "name": "APP_ENV",      "value": "production" },
+        { "name": "LOG_LEVEL",    "value": "INFO" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/cloudtask-api",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "api",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
+}

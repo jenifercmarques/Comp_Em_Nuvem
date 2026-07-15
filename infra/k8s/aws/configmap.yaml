@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudtask-config
+  namespace: cloudtask
+data:
+  APP_ENV: "production"
+  APP_PORT: "8000"
+  LOG_LEVEL: "INFO"
+  # Decisao: FORCE_HTTPS true com BEHIND_PROXY true.
+  # Por que: quando houver ALB/Ingress HTTPS, o app envia HSTS e evita loop.
+  # Risco se ignorar: redirect no app atras do proxy pode quebrar probes HTTP.
+  FORCE_HTTPS: "true"
+  BEHIND_PROXY: "true"
+  TRUSTED_HOSTS: "*"
+  STORAGE_MODE: "local"
+  LOCAL_UPLOADS_DIR: "/data/uploads"

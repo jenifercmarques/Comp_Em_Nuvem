@@ -1,0 +1,177 @@
+// =============================================================================
+// devcontainer.json — CloudTask AI SaaS (cloud-native real)
+// -----------------------------------------------------------------------------
+// O VS Code abre o projeto DENTRO do container `api` (definido no
+// docker-compose.yml). O terminal integrado já é o Linux do container.
+//
+// NESTA configuração instalamos TAMBÉM as ferramentas de nuvem no container
+// (AWS CLI, kubectl, eksctl, Node/CDK, docker CLI), via "features" oficiais.
+// Assim o aluno faz TUDO (dev + deploy) sem sair do VS Code.
+//
+// CREDENCIAIS — ponto importante:
+//   Montamos o ~/.aws e ~/.kube do HOST dentro do container (ver "mounts").
+//   POR QUÊ: você configura as credenciais UMA vez (no host) e o container lê
+//   o MESMO arquivo. O AWS Academy troca as credenciais a cada sessão — você
+//   cola o bloco novo em ~/.aws/credentials no host e o container enxerga na
+//   hora (o mount é "vivo"). Não há configuração dupla.
+//
+// EXCEÇÃO — kind (Aula 6):
+//   O `kind` cria o cluster usando o Docker do host e expõe a API em
+//   127.0.0.1 do HOST. De dentro do container isso não é alcançável sem
+//   gambiarra de rede. Então `kind` + `kubectl` do kind rodam no HOST.
+//   Para EKS (Aulas 7–11), o `kubectl`/`eksctl`/`cdk` do container funcionam
+//   normalmente (falam com a API pública da AWS).
+//
+// Como usar:
+//   1. (Uma vez) crie a pasta ~/.aws no host e cole as credenciais do Learner
+//      Lab em ~/.aws/credentials (ver docs/praticas/00-setup-inicial-e-aws-academy.md, Parte 3).
+//   2. F1 → "Dev Containers: Rebuild and Reopen in Container".
+//      (Rebuild porque adicionamos features e mounts novos.)
+// =============================================================================
+{
+  "name": "CloudTask AI SaaS — dev cloud-native (via compose)",
+
+  // O compose é a fonte da verdade do ambiente (API + PostgreSQL).
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "api",
+  "workspaceFolder": "/app",
+  "shutdownAction": "stopCompose",
+  "remoteUser": "appuser",
+
+  // overrideCommand=false: o container roda o CMD do serviço `api` do compose,
+  // que é o do Dockerfile target dev -> `uvicorn ... --reload`. Ou seja, a API
+  // **sobe sozinha** quando o devcontainer abre. Acesse http://localhost:8000/docs
+  // (em DEV é HTTP, não HTTPS — TLS só na borda/ALB em produção).
+  //
+  // Os logs do uvicorn aparecem em `docker compose logs -f api` (ou no painel
+  // de logs do container no VS Code), pois o uvicorn é o processo principal.
+  //
+  // Para DEPURAR com breakpoints: o servidor automático já ocupa a porta 8000;
+  // pare-o (`docker compose stop api` e rode manualmente sob o debugger) OU use
+  // a config de "attach" do .vscode/launch.json. Para a maioria das aulas, o
+  // hot-reload automático basta.
+  "overrideCommand": false,
+
+  // ---------------------------------------------------------------------------
+  // Features = "add-ons" oficiais instalados no container durante o build.
+  // Rodam como root, então não esbarram em permissão (diferente de comandos
+  // pós-criação, que rodam como appuser).
+  // ---------------------------------------------------------------------------
+  "features": {
+    // common-utils: instala zsh + oh-my-zsh e define o zsh como shell padrão.
+    // POR QUÊ: o shell padrão (sh/bash) é cru; o zsh + oh-my-zsh trazem
+    // autocompletar, histórico melhor e um prompt informativo (ver .zshrc).
+    // Os plugins externos e o nosso .zshrc são aplicados no post-create.
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "installOhMyZsh": true,
+      "installOhMyZshConfig": true,
+      "configureZshAsDefaultShell": true,
+      "username": "appuser",
+      "upgradePackages": false
+    },
+
+    // Git e GitHub CLI: commitar/abrir PRs de dentro do container.
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+
+    // AWS CLI v2: comandos `aws ...` (Aulas 5, 7–11).
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+
+    // (Node.js NÃO vem por feature: a feature oficial usa nvm + `source`, que
+    //  falha no /bin/sh=dash do Debian trixie. Instalamos Node via apt no
+    //  Dockerfile (target dev). O `cdk` é instalado no post-create via npm.)
+
+    // kubectl (sem helm e sem minikube — não usamos). Aulas 6, 8, 9.
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+      "version": "latest",
+      "helm": "none",
+      "minikube": "none"
+    },
+
+    // docker-outside-of-docker: dá um `docker` DENTRO do container que fala
+    // com o daemon do HOST (compartilha o socket). Permite `docker build` e
+    // `docker push` (Aula 7 — ECR) sem sair do VS Code.
+    // POR QUÊ "outside" e não "in-docker": reaproveitar o Docker do host é
+    // mais leve e evita Docker-dentro-de-Docker (privilegiado, pesado).
+    // RISCO: o container ganha acesso ao Docker do host — aceitável em
+    // ambiente de desenvolvimento/aula.
+    //
+    // "moby": false  -> instala o Docker CE oficial em vez do "moby-cli".
+    //   POR QUÊ: a imagem base python:3.11-slim hoje é Debian 13 (trixie), que
+    //   NÃO tem os pacotes moby-cli. Com moby:true o build FALHA no trixie.
+    //   O Docker CE oficial funciona normalmente.
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "moby": false
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // Mounts extras: credenciais compartilhadas host <-> container.
+  //
+  // Usamos ${localEnv:USERPROFILE} = pasta do usuário no WINDOWS (ex.:
+  // C:\Users\seu-nome). Funciona em todo Windows, INDEPENDENTE de a variável
+  // HOME estar setada ou não.
+  //
+  // ⚠️ macOS / Linux: troque ${localEnv:USERPROFILE} por ${localEnv:HOME} nas
+  //    duas linhas abaixo (no Windows HOME pode estar setada e quebrar o path;
+  //    por isso NÃO concatenamos as duas variáveis).
+  //
+  // CUIDADO: as pastas ~/.aws e ~/.kube precisam EXISTIR no host antes de abrir
+  // o devcontainer (senão o Docker cria pastas vazias pertencentes ao root).
+  // O post-create ajusta o dono por garantia.
+  // ---------------------------------------------------------------------------
+  "mounts": [
+    "source=${localEnv:USERPROFILE}/.aws,target=/home/appuser/.aws,type=bind,consistency=cached",
+    "source=${localEnv:USERPROFILE}/.kube,target=/home/appuser/.kube,type=bind,consistency=cached",
+    // Volume nomeado para o histórico do zsh sobreviver a rebuilds do container.
+    "source=cloudtask-zsh-history,target=/commandhistory,type=volume"
+  ],
+
+  // Instala eksctl + AWS CDK e ajusta permissões das credenciais montadas.
+  // Roda UMA vez, após o container ser criado.
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy",
+        "charliermarsh.ruff",
+        "tamasfe.even-better-toml",
+        "redhat.vscode-yaml",
+        "ms-azuretools.vscode-docker",
+        "amazonwebservices.aws-toolkit-vscode"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/home/appuser/.local/bin/python",
+        "python.terminal.activateEnvironment": false,
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.ruff": "explicit",
+          "source.organizeImports.ruff": "explicit"
+        },
+        "[python]": { "editor.defaultFormatter": "charliermarsh.ruff" },
+        "files.exclude": {
+          "**/__pycache__": true,
+          "**/.pytest_cache": true,
+          "**/.ruff_cache": true
+        },
+        // Usa o zsh (com oh-my-zsh) no terminal integrado do VS Code.
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        // Shell integration: necessário para o sticky scroll funcionar (linha
+        // do comando fica fixa no topo quando a saída é longa).
+        "terminal.integrated.shellIntegration.enabled": true,
+        "terminal.integrated.stickyScroll.enabled": true,
+        "terminal.integrated.shellIntegration.decorationsEnabled": "both"
+      }
+    }
+  },
+
+  "forwardPorts": [8000, 5678],
+  "portsAttributes": {
+    "8000": { "label": "FastAPI",  "onAutoForward": "notify" },
+    "5678": { "label": "debugpy",  "onAutoForward": "silent" }
+  }
+}
