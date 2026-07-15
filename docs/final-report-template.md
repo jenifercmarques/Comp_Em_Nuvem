@@ -30,8 +30,44 @@ Tambem foi implementado upload de arquivos (modo local e S3) e registro de event
 
 ## 4. Arquitetura
 
-Cole/descreva a arquitetura. Pode reaproveitar o diagrama de
-final-architecture.md e adaptar ao que VOCÊ subiu.
+Arquitetura adaptada do arquivo final-architecture.md, considerando apenas o que foi implementado nesta entrega:
+
+```text
+Cliente (browser/curl)
+  |
+  v
+FastAPI (container Docker)
+  |
+  +--> PostgreSQL (container Docker)  [CRUD de tarefas]
+  |
+  +--> Upload Service
+  |      +--> modo local: ./local_uploads
+  |      +--> modo S3: Amazon S3
+  |
+  +--> Event Service
+         +--> modo local: local_events/events.json
+         +--> modo nuvem: DynamoDB
+
+Entrega de imagem:
+API Docker image -> push para Amazon ECR (implementado)
+```
+
+Componentes implementados nesta entrega:
+- API com FastAPI em container Docker.
+- Persistencia com PostgreSQL local em Docker Compose.
+- Upload de arquivos com fallback local e suporte a S3.
+- Registro de eventos com fallback JSON local e suporte a DynamoDB.
+- Publicacao da imagem da API no ECR.
+- Testes automatizados do backend.
+
+Componentes NAO implementados nesta entrega:
+- EKS (cluster gerenciado).
+- HPA (autoscaling horizontal de pods).
+- CDK (infraestrutura como codigo aplicada no ambiente final).
+
+Resumo tecnico:
+- O fluxo principal executado foi API + banco local, com integracoes opcionais na AWS (S3, DynamoDB e ECR).
+- A arquitetura final operante ficou hibrida (local + servicos AWS), sem orquestracao em EKS e sem automacao completa via CDK por problemas com IAM role.
 
 ## 5. Como executar (reprodutível)
 
