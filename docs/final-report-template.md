@@ -8,7 +8,7 @@
 - **Aluno(a):** Jenifer Carvalho Marques
 - **RU / matrícula:** 4958653
 - **Disciplina:** Computação em Nuvem — UNINTER
-- **Repositório:** link do seu fork/branch
+- **Repositório:** [Link Repositorio](https://github.com/jenifercmarques/Comp_Em_Nuvem/tree/main)
 - **Data:** 15/07/2026`
 
 ## 2. Resumo do projeto
