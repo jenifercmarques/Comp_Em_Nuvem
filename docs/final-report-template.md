@@ -30,8 +30,6 @@ Tambem foi implementado upload de arquivos (modo local e S3) e registro de event
 
 ## 4. Arquitetura
 
-Arquitetura adaptada do arquivo final-architecture.md, considerando apenas o que foi implementado nesta entrega:
-
 ```text
 Cliente (browser/curl)
   |
